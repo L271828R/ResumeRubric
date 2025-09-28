@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Resume Rubric JSON → Pretty Report (v1.3, no sample)</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#22c55e; --accent2:#3b82f6; --warn:#f59e0b; --err:#ef4444; --ok:#10b981;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(135deg,#0b1225,#0f172a 30%,#0b1225);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial}
+    header{position:sticky;top:0;z-index:5;background:rgba(10,15,30,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1f2937}
+    header .wrap{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center;padding:12px 16px}
+    header h1{font-size:18px;margin:0;letter-spacing:.2px}
+    header small{color:var(--muted)}
+    .container{max-width:1200px;margin:20px auto;display:grid;grid-template-columns:1fr 1.25fr;gap:16px;padding:0 16px}
+    .container.hide-input{grid-template-columns:1fr}
+    .container.hide-input .card.input{display:none}
+    .card{background:var(--panel);border:1px solid #1f2937;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0 0 8px 0;font-size:16px}
+    .card .head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #1f2937}
+    .card .body{padding:16px}
+    textarea{width:100%;min-height:300px;background:#0b1220;color:var(--text);border:1px solid #243047;border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    button{appearance:none;background:var(--accent2);color:white;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px rgba(59,130,246,.35)}
+    button.secondary{background:#334155}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .score-ring{--size:96px;position:relative;width:var(--size);height:var(--size);display:grid;place-items:center}
+    .score-ring svg{transform:rotate(-90deg)}
+    .score-ring .label{position:absolute;text-align:center}
+    .bar{height:10px;background:#1f2937;border-radius:999px;overflow:hidden;position:relative}
+    .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#06b6d4);width:0}
+    .bar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px}
+    .info{display:inline-flex;align-items:center;gap:6px}
+    .info button{background:#1f2937;border:1px solid #314357;padding:4px 8px;border-radius:999px;font-size:12px}
+    .cols{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .list{display:grid;gap:8px}
+    .list li{background:#0b1220;border:1px solid #1f2a42;border-radius:10px;padding:8px 10px}
+    .kpis{display:flex;gap:18px;flex-wrap:wrap}
+    .kpi{background:#0b1220;border:1px solid #1f2a42;border-radius:12px;padding:10px 12px;min-width:140px}
+    .kpi .big{font-size:20px;font-weight:700}
+    .footer-note{color:#8ca3c7;font-size:13px;margin-top:10px}
+    .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#0b1220;border:1px solid #21314b;color:#cbd5e1;font-size:12px}
+    /* REWRITE HERO */
+    .hero{background:linear-gradient(180deg,#0b1220,#0b1220 60%,#0f172a);border:1px solid #1f2a42;border-radius:16px}
+    .hero h2{font-size:18px}
+    .rewrite-item{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid #1f2a42;border-radius:10px;background:#0b1226}
+    .rewrite-item .where{display:flex;gap:8px;flex-wrap:wrap}
+    .rewrite-item .text{white-space:pre-wrap}
+    /* Modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50}
+    .modal .box{background:#0b1220;border:1px solid #1f2a42;max-width:640px;width:92%;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+    .modal .head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #1f2a42}
+    .modal .body{padding:14px}
+    @media (max-width:920px){ .cols{grid-template-columns:1fr} .container{grid-template-columns:1fr} .container .card.input{order:2} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>📄 Resume Rubric JSON → 🎯 Report</h1>
+      <small class="muted">Paste your rubric JSON on the left, then “Render report”.</small>
+      <button id="toggleInput" class="secondary" title="Show/Hide input (Ctrl/Cmd+I)">Hide input</button>
+      <button id="langToggle" class="secondary" title="Toggle English/Spanish (Ctrl/Cmd+L)">ES</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="card input">
+      <div class="head">
+        <h2>Input JSON</h2>
+        <div class="row">
+          <button id="render">Render report</button>
+        </div>
+      </div>
+      <div class="body">
+        <textarea id="jsonInput" placeholder='Paste the JSON produced by the rubric here'></textarea>
+        <div class="footer-note">Notes: Matches the v1.3 schema. <code>rewrite_suggestions</code> can be strings or objects with <code>text</code> + <code>location</code> (section/index/line_hint).</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head">
+        <h2>Output</h2>
+        <div class="row">
+          <button id="copyHtml" class="secondary">Copy as HTML</button>
+          <button id="print">Print / PDF</button>
+        </div>
+      </div>
+      <div class="body" id="report"><div class="muted">Your formatted report will appear here.</div></div>
+    </section>
+  </div>
+
+  <!-- Metric Info Modal -->
+  <div id="metricModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="box">
+      <div class="head">
+        <h3 id="metricTitle" style="margin:0;font-size:16px"></h3>
+        <button id="modalClose" class="secondary">✖</button>
+      </div>
+      <div class="body" id="metricBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const reportEl = $('#report');
+
+    // ===== Language toggle & labels =====
+    let currentLang = localStorage.getItem('lang') || 'en';
+    const langBtn = $('#langToggle');
+
+    const labels = {
+      en: {
+        bars: {banality:'🧱 Banality', dissonance:'🧭 Dissonance', impact:'📈 Impact evidence', role:'👥 Role & scope', integrity:'🧪 Integrity', tenure:'⏱️ Tenure & engagement'},
+        band: {standout:'🏆 Standout', strong:'✅ Strong', mixed:'🟡 Mixed', weak:'🔴 Weak'},
+        kpis: {overall:'Overall band', target:'Target'},
+        heads: {improve:'🔧 Improvement Plan', credible:'✅ Credible Bullets', banal:'⚠️ Banal Bullets', dissonant:'🧭 Dissonant Phrases', banalP:'🧱 Banal Phrases', red:'🚩 Red Flags', rewrite:'✍️ Rewrite Suggestions', notes:'📝 Notes'},
+        empty: {none:'None', credible:'No credible bullets detected—add quantified outcomes.', banal:'No banal bullets flagged—nice!', rewrite:'Add 3–5 metric-backed rewrites that follow baseline → delta → timeframe.'},
+        hints: {
+          good:'✅ Looking solid. Consider polishing wording and adding fresh metrics from the last quarter.',
+          to80:(delta)=>`🎯 +${delta} pts to reach 80: `,
+          list:{
+            banality:'🧱 Replace buzzwords with concrete actions, constraints, and metrics. Aim for baseline → delta → timeframe.',
+            dissonance:'🧭 Add role-specific tech/results that match the target JD; trim irrelevant tools.',
+            impact:'📈 Add 3–5 quantified outcomes (p95/p99, error rate, MTTR, incidents/mo, throughput).',
+            role:'👥 Clarify ownership: systems owned, team size, budgets, customers impacted.',
+            integrity:'🧪 Fix typos/overlaps; ensure magnitudes are plausible and stacks consistent.',
+            tenure:'⏱️ Label short stints as Contract/Consultant; add ≥2 quantified outcomes and note extensions/conversions.'
+          }
+        },
+        info: {
+          banality: '<p><strong>What it measures:</strong> Specificity vs. generic language. High = concrete actions, constraints, measurable results.</p><p><strong>Improve:</strong> Action → constraint → metric → timeframe.</p>',
+          dissonance: '<p><strong>What it measures:</strong> Alignment to target role/JD (domain, seniority, tools).</p><p><strong>Improve:</strong> Emphasize role-specific tech/results; trim irrelevant tools.</p>',
+          impact_evidence: '<p><strong>What it measures:</strong> Metrics with units and baseline → delta → timeframe.</p><p><strong>Improve:</strong> Add p95/p99, error rate, MTTR, throughput, SLA adherence, etc.</p>',
+          role_scope_clarity: '<p><strong>What it measures:</strong> Ownership and scope (systems, team size, budgets, customers).</p><p><strong>Improve:</strong> State scope explicitly.</p>',
+          integrity_signals: '<p><strong>What it measures:</strong> Timeline coherence, plausible magnitudes, stack consistency, accuracy.</p><p><strong>Improve:</strong> Fix overlaps/typos; sanity-check magnitudes.</p>',
+          tenure_signals: '<p><strong>What it measures:</strong> Context/outcomes for short stints; continuity and extensions/conversions.</p><p><strong>Improve:</strong> Label Contract/Consultant; include ≥2 outcomes; note extensions.</p>'
+        }
+      },
+      es: {
+        bars: {banality:'🧱 Banalidad', dissonance:'🧭 Disonancia', impact:'📈 Evidencia de impacto', role:'👥 Rol y alcance', integrity:'🧪 Integridad', tenure:'⏱️ Antigüedad y compromiso'},
+        band: {standout:'🏆 Sobresaliente', strong:'✅ Fuerte', mixed:'🟡 Mixto', weak:'🔴 Débil'},
+        kpis: {overall:'Clasificación general', target:'Objetivo'},
+        heads: {improve:'🔧 Plan de mejora', credible:'✅ Puntos creíbles', banal:'⚠️ Puntos banales', dissonant:'🧭 Frases disonantes', banalP:'🧱 Frases banales', red:'🚩 Señales de alerta', rewrite:'✍️ Sugerencias de reescritura', notes:'📝 Notas'},
+        empty: {none:'Ninguno', credible:'No se detectaron puntos creíbles—añade resultados cuantificados.', banal:'No se detectaron puntos banales—¡bien!', rewrite:'Añade 3–5 reescrituras con métricas (línea base → delta → plazo).'},
+        hints: {
+          good:'✅ Se ve sólido. Pule el texto y añade métricas recientes del último trimestre.',
+          to80:(delta)=>`🎯 +${delta} pts para llegar a 80: `,
+          list:{
+            banality:'🧱 Sustituye palabras de moda por acciones, restricciones y métricas concretas. Apunta a línea base → delta → plazo.',
+            dissonance:'🧭 Añade tecnología/resultados específicos del rol del JD; elimina herramientas irrelevantes.',
+            impact:'📈 Añade 3–5 resultados cuantificados (p95/p99, tasa de error, MTTR, incidentes/mes, throughput).',
+            role:'👥 Aclara la propiedad: sistemas, tamaño de equipo, presupuestos, clientes impactados.',
+            integrity:'🧪 Corrige errores/solapes; magnitudes plausibles y stack consistente.',
+            tenure:'⏱️ Etiqueta periodos cortos como Contrato/Consultoría; añade ≥2 resultados cuantificados y extensiones/conversiones.'
+          }
+        },
+        info: {
+          banality: '<p><strong>Qué mide:</strong> Especificidad vs. lenguaje genérico. Alto = acciones concretas, restricciones y métricas.</p><p><strong>Mejora:</strong> Acción → restricción → métrica → plazo.</p>',
+          dissonance: '<p><strong>Qué mide:</strong> Alineación con el rol/JD (dominio, senioridad, herramientas).</p><p><strong>Mejora:</strong> Destaca tecnología/resultados del rol; elimina herramientas irrelevantes.</p>',
+          impact_evidence: '<p><strong>Qué mide:</strong> Métricas con unidades y línea base → delta → plazo.</p><p><strong>Mejora:</strong> Añade p95/p99, tasa de error, MTTR, throughput, SLA, etc.</p>',
+          role_scope_clarity: '<p><strong>Qué mide:</strong> Propiedad y alcance (sistemas, tamaño de equipo, presupuestos, clientes).</p><p><strong>Mejora:</strong> Declara el alcance explícitamente.</p>',
+          integrity_signals: '<p><strong>Qué mide:</strong> Coherencia temporal, magnitudes plausibles, stack consistente, exactitud.</p><p><strong>Mejora:</strong> Corrige solapes/errores; valida magnitudes.</p>',
+          tenure_signals: '<p><strong>Qué mide:</strong> Contexto/resultados en periodos cortos; continuidad y extensiones/conversiones.</p><p><strong>Mejora:</strong> Etiqueta Contrato/Consultoría; ≥2 resultados; nota extensiones.</p>'
+        }
+      }
+    };
+
+    function setLang(lang){
+      currentLang = lang;
+      localStorage.setItem('lang', lang);
+      if(langBtn) langBtn.textContent = (lang === 'en' ? 'ES' : 'EN');
+      const raw = $('#jsonInput').value.trim();
+      if(raw){ try { render(JSON.parse(raw.replace(/^```(json)?|```$/g,''))); } catch(e){} }
+    }
+    if(langBtn){ langBtn.addEventListener('click', ()=> setLang(currentLang==='en'?'es':'en')); }
+    setLang(localStorage.getItem('lang') || 'en');
+
+    const emojiFor = { banality:'🧱', dissonance:'🧭', impact_evidence:'📈', role_scope_clarity:'👥', integrity_signals:'🧪', tenure_signals:'⏱️' };
+    const clamp = (n,min,max)=> Math.max(min,Math.min(max,n||0));
+
+    function ring(score){
+      const r=42, c=2*Math.PI*r, frac = clamp(score,0,100)/100, off = c*(1-frac);
+      return `
+      <div class="score-ring" title="Overall score">
+        <svg width="96" height="96" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" stroke="#1f2a42" stroke-width="10" fill="none" />
+          <circle cx="50" cy="50" r="42" stroke="url(#g)" stroke-linecap="round" stroke-width="10" fill="none" stroke-dasharray="${c}" stroke-dashoffset="${off}" />
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0%" stop-color="#22c55e"/>
+              <stop offset="100%" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="label"><div style="font-size:22px;font-weight:800">${score}</div><div class="muted" style="font-size:12px">/100</div></div>
+      </div>`;
+    }
+
+    function bar(val,max,label,key){
+      const width = Math.round(100*Math.max(0,Math.min(val||0,max))/max);
+      return `
+        <div>
+          <div class="bar-head">
+            <div class="info">
+              <div>${label}</div>
+              <button aria-label="Info" onclick="showMetricInfo('${key}')">?</button>
+            </div>
+            <div class="muted">${val}/${max} (${width}%)</div>
+          </div>
+          <div class="bar"><span style="width:${width}%"></span></div>
+        </div>`;
+    }
+
+    function bandText(overall,L){
+      if(overall>=75) return L.band.standout;
+      if(overall>=60) return L.band.strong;
+      if(overall>=40) return L.band.mixed;
+      return L.band.weak;
+    }
+
+    const sanitize = (x)=> String(x).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+    function listify(arr, emptyLabel){
+      if(!arr || !arr.length) return `<div class="muted">${emptyLabel||'None'}</div>`;
+      return `<ul class="list">${arr.map(x=>`<li>${sanitize(x)}</li>`).join('')}</ul>`;
+    }
+
+    function improvementHints(scores){
+      const L = labels[currentLang];
+      const hints=[];
+      if(scores.banality!=null && scores.banality<22) hints.push(L.hints.list.banality);
+      if(scores.dissonance!=null && scores.dissonance<22) hints.push(L.hints.list.dissonance);
+      if(scores.impact_evidence!=null && scores.impact_evidence<14) hints.push(L.hints.list.impact);
+      if(scores.role_scope_clarity!=null && scores.role_scope_clarity<8) hints.push(L.hints.list.role);
+      if(scores.integrity_signals!=null && scores.integrity_signals<8) hints.push(L.hints.list.integrity);
+      if(scores.tenure_signals!=null && scores.tenure_signals<4) hints.push(L.hints.list.tenure);
+      return hints;
+    }
+
+    function targetTo80(scores){
+      const L = labels[currentLang];
+      const total = (scores.banality||0)+(scores.dissonance||0)+(scores.impact_evidence||0)+(scores.role_scope_clarity||0)+(scores.integrity_signals||0)+(scores.tenure_signals||0);
+      const delta = Math.max(0,80-total);
+      if(!delta) return (currentLang==='es' ? '🚀 Ya estás en territorio 80+—pulir redacción y mantener métricas al día.' : '🚀 Already in 80+ territory—polish wording and keep metrics tight.');
+      let rec = L.hints.to80(delta);
+      const plan=[];
+      if(scores.impact_evidence<14){plan.push(currentLang==='es'?'+4 Impacto':'+4 Impact');}
+      if(scores.banality<22){plan.push(currentLang==='es'?'+3 Banalidad':'+3 Banality');}
+      if(scores.dissonance<22){plan.push(currentLang==='es'?'+2 Disonancia':'+2 Dissonance');}
+      if(scores.tenure_signals<4){plan.push(currentLang==='es'?'+1 Antigüedad':'+1 Tenure');}
+      if(!plan.length) plan.push(currentLang==='es'?'repartir entre palancas (Impacto & Disonancia)':'spread across strongest levers (Impact & Dissonance)');
+      return rec+plan.join(', ') + '.';
+    }
+
+    // Modal logic
+    function showMetricInfo(key){
+      const modal = $('#metricModal');
+      const title = $('#metricTitle');
+      const body = $('#metricBody');
+      const L = labels[currentLang];
+      const titles = {
+        banality: L.bars.banality,
+        dissonance: L.bars.dissonance,
+        impact_evidence: L.bars.impact,
+        role_scope_clarity: L.bars.role,
+        integrity_signals: L.bars.integrity,
+        tenure_signals: L.bars.tenure
+      };
+      title.textContent = titles[key] || 'Info';
+      body.innerHTML = (labels[currentLang].info[key] || '');
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+    }
+    window.showMetricInfo = showMetricInfo;
+    $('#modalClose').addEventListener('click', ()=>{const m=$('#metricModal');m.style.display='none';m.setAttribute('aria-hidden','true');});
+    $('#metricModal').addEventListener('click', (e)=>{ if(e.target.id==='metricModal'){ $('#modalClose').click(); } });
+
+    function render(json){
+      const L = labels[currentLang];
+      const s = json.section_scores||{};
+      const overall = Math.max(0,Math.min(json.overall_score||0,100));
+      const inferredRole = (json.i18n && json.i18n.es && currentLang==='es' && json.i18n.es.inferred_target_role) ? json.i18n.es.inferred_target_role : json.inferred_target_role;
+
+      const grid = `
+        <div class="row" style="align-items:center;gap:16px">
+          ${ring(overall)}
+          <div class="grid" style="flex:1">
+            ${bar(s.banality,28,`🧱 ${L.bars.banality}`,'banality')}
+            ${bar(s.dissonance,28,`🧭 ${L.bars.dissonance}`,'dissonance')}
+            ${bar(s.impact_evidence,20,`📈 ${L.bars.impact}`,'impact_evidence')}
+            ${bar(s.role_scope_clarity,10,`👥 ${L.bars.role}`,'role_scope_clarity')}
+            ${bar(s.integrity_signals,9,`🧪 ${L.bars.integrity}`,'integrity_signals')}
+            ${'tenure_signals' in s ? bar(s.tenure_signals,5,`⏱️ ${L.bars.tenure}`,'tenure_signals') : ''}
+          </div>
+        </div>
+        <div class="kpis" style="margin-top:12px">
+          <div class="kpi"><div class="big">${bandText(overall, L)}</div><div class="muted">${L.kpis.overall}</div></div>
+          ${inferredRole?`<div class="kpi"><div class="big">🎯</div><div class="muted">${L.kpis.target}: ${sanitize(inferredRole)}</div></div>`:''}
+        </div>`;
+
+      const hints = improvementHints(s);
+
+      const pick = (enArr, esArr) => (currentLang==='es' && esArr ? esArr : enArr);
+      const es = (json.i18n && json.i18n.es) ? json.i18n.es : {};
+      const banalPhrases = pick(json.banal_phrases, es.banal_phrases);
+      const dissonantPhrases = pick(json.dissonant_phrases, es.dissonant_phrases);
+      const credibleBullets = pick(json.credible_bullets, es.credible_bullets);
+      const banalBullets = pick(json.banal_bullets, es.banal_bullets);
+      const redFlags = pick(json.red_flags, es.red_flags);
+      const notes = pick(json.notes, es.notes);
+
+      // Rewrite suggestions: strings or objects
+      const rawRewrites = pick(json.rewrite_suggestions, es.rewrite_suggestions);
+      const rewrites = (rawRewrites||[]).map(item=>{
+        if(typeof item === 'string') return {text:item};
+        if(item && typeof item === 'object') return {text:item.text, location:item.location||null};
+        return null;
+      }).filter(Boolean);
+
+      const rewriteHTML = `
+        <div class="hero">
+          <div class="head" style="border:none;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+            <h2>${L.heads.rewrite}</h2>
+            <span class="muted">${rewrites.length||0} ${currentLang==='es'?'sugerencias':'suggestions'}</span>
+          </div>
+          <div class="body" style="display:grid;gap:10px">
+            ${rewrites.length? rewrites.map(r=>`
+              <div class="rewrite-item">
+                <div class="text">${sanitize(r.text)}</div>
+                ${r.location ? `<div class="where">
+                  <span class="tag">📌 ${sanitize(r.location.section||'')}</span>
+                  ${'index' in r.location ? `<span class="tag">#${r.location.index}</span>`:''}
+                  ${r.location.line_hint? `<span class="tag">“${sanitize(r.location.line_hint)}”</span>`:''}
+                </div>`:''}
+              </div>`).join('') : `<div class="muted">${labels[currentLang].empty.rewrite}</div>`}
+          </div>
+        </div>`;
+
+      reportEl.innerHTML = `
+        <div class="grid" style="gap:18px">
+          ${grid}
+          ${rewriteHTML}
+
+          <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+            <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.improve}</h2></div>
+            <div class="body">
+              ${(hints.length? `<ul class="list">${hints.map(h=>`<li>${h}</li>`).join('')}</ul>` : `<div class="ok">${labels[currentLang].hints.good}</div>`)}
+              <div class="footer-note">${targetTo80(s)}</div>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+              <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.credible}</h2></div>
+              <div class="body">${listify(credibleBullets,labels[currentLang].empty.credible)}</div>
+            </div>
+            <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+              <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.banal}</h2></div>
+              <div class="body">${listify(banalBullets,labels[currentLang].empty.banal)}</div>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+              <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.dissonant}</h2></div>
+              <div class="body">${listify(dissonantPhrases,labels[currentLang].empty.none)}</div>
+            </div>
+            <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+              <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.banalP}</h2></div>
+              <div class="body">${listify(banalPhrases,labels[currentLang].empty.none)}</div>
+            </div>
+          </div>
+
+          <div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+            <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.red}</h2></div>
+            <div class="body">${listify(redFlags,labels[currentLang].empty.none)}</div>
+          </div>
+
+          ${notes && notes.length ? `<div class="card" style="background:#0b1220;border:1px solid #1f2a42;border-radius:12px">
+            <div class="head" style="border:none;padding:12px 14px"><h2>${L.heads.notes}</h2></div>
+            <div class="body">${listify(notes,labels[currentLang].empty.none)}</div>
+          </div>`:''}
+        </div>`;
+    }
+
+    function renderFromTextarea(){
+      const raw = $('#jsonInput').value.trim();
+      if(!raw){reportEl.innerHTML = '<div class="muted">Paste JSON first.</div>';return;}
+      try{
+        const cleaned = raw.replace(/^```(json)?|```$/g,'');
+        const data = JSON.parse(cleaned);
+        render(data);
+      }catch(e){ reportEl.innerHTML = `<div class="err">❌ Invalid JSON: ${sanitize(e.message)}</div>`; }
+    }
+
+    $('#render').addEventListener('click', renderFromTextarea);
+    $('#print').addEventListener('click', ()=>window.print());
+    $('#copyHtml').addEventListener('click', ()=>{
+      const html = reportEl.innerHTML;
+      navigator.clipboard.writeText(html).then(()=>{ const btn=$('#copyHtml'); const txt=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=txt,1200); });
+    });
+
+    // Input panel toggle + hotkeys
+    (function(){
+      const containerEl = document.querySelector('.container');
+      const toggleBtn = document.querySelector('#toggleInput');
+      function setHideInput(hide){
+        if(!toggleBtn||!containerEl) return;
+        if(hide){ containerEl.classList.add('hide-input'); toggleBtn.textContent = 'Show input'; localStorage.setItem('hideInput','1'); }
+        else { containerEl.classList.remove('hide-input'); toggleBtn.textContent = 'Hide input'; localStorage.setItem('hideInput','0'); }
+      }
+      const savedHide = localStorage.getItem('hideInput') === '1';
+      setHideInput(savedHide);
+      toggleBtn.addEventListener('click', ()=> setHideInput(!containerEl.classList.contains('hide-input')));
+      document.addEventListener('keydown', (e)=>{
+        if((e.ctrlKey||e.metaKey) && (e.key==='i' || e.key==='I')){ e.preventDefault(); toggleBtn.click(); }
+        if((e.ctrlKey||e.metaKey) && (e.key==='l' || e.key==='L')){ e.preventDefault(); if(langBtn) langBtn.click(); }
+      });
+    })();
+  </script>
+</body>
+</html>
+
